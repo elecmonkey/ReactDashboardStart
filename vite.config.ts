@@ -1,5 +1,5 @@
 // import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import react from '@vitejs/plugin-react-oxc';
 import { resolve } from 'path';
 
 // https://vitejs.dev/config/
@@ -32,7 +32,6 @@ export default {
               test: /src[\\/]pages[\\/]/,
               priority: 90,
             },
-            // 公共模块分包
             {
               name: 'shared',
               test: /src[\\/](components|utils|hooks|services)/,
