@@ -19,6 +19,9 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined } from '@ant
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import type { Product } from '@/types';
 import { productService } from '@/services';
+import { createAntdFormValidator } from '@/utils';
+import { CreateProductRequestSchema, UpdateProductRequestSchema } from '@/schemas';
+import type { CreateProductRequest, UpdateProductRequest } from '@/schemas';
 
 const ProductManagement: React.FC = () => {
   useDocumentTitle('产品管理');
@@ -28,6 +31,10 @@ const ProductManagement: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [form] = Form.useForm();
+
+  // 创建表单验证器
+  const createValidator = createAntdFormValidator(CreateProductRequestSchema);
+  const updateValidator = createAntdFormValidator(UpdateProductRequestSchema);
 
   // 获取产品列表
   const fetchProducts = async () => {
@@ -196,6 +203,9 @@ const ProductManagement: React.FC = () => {
     },
   ];
 
+  // 根据编辑状态选择验证器
+  const currentValidator = editingProduct ? updateValidator : createValidator;
+
   return (
     <Spin spinning={loading}>
       <div>
@@ -238,7 +248,8 @@ const ProductManagement: React.FC = () => {
             <Form.Item
               label="产品名称"
               name="name"
-              rules={[{ required: true, message: '请输入产品名称!' }]}
+              rules={currentValidator.getAntdRules('name')}
+              extra="1-100个字符"
             >
               <Input />
             </Form.Item>
@@ -246,7 +257,7 @@ const ProductManagement: React.FC = () => {
             <Form.Item
               label="分类"
               name="category"
-              rules={[{ required: true, message: '请选择分类!' }]}
+              rules={currentValidator.getAntdRules('category')}
             >
               <Select>
                 <Select.Option value="手机">手机</Select.Option>
@@ -260,10 +271,13 @@ const ProductManagement: React.FC = () => {
             <Form.Item
               label="价格"
               name="price"
-              rules={[{ required: true, message: '请输入价格!' }]}
+              rules={currentValidator.getAntdRules('price')}
+              extra="价格范围：0-999999.99"
             >
               <InputNumber
                 min={0}
+                max={999999.99}
+                precision={2}
                 style={{ width: '100%' }}
                 placeholder="请输入价格"
                 formatter={value => `¥ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
@@ -277,10 +291,12 @@ const ProductManagement: React.FC = () => {
             <Form.Item
               label="库存"
               name="stock"
-              rules={[{ required: true, message: '请输入库存数量!' }]}
+              rules={currentValidator.getAntdRules('stock')}
+              extra="库存数量必须为非负整数"
             >
               <InputNumber
                 min={0}
+                precision={0}
                 style={{ width: '100%' }}
                 placeholder="请输入库存数量"
               />
@@ -289,7 +305,7 @@ const ProductManagement: React.FC = () => {
             <Form.Item
               label="状态"
               name="status"
-              rules={[{ required: true, message: '请选择状态!' }]}
+              rules={currentValidator.getAntdRules('status')}
             >
               <Select>
                 <Select.Option value="available">上架</Select.Option>
@@ -300,15 +316,24 @@ const ProductManagement: React.FC = () => {
             <Form.Item
               label="图片URL"
               name="image"
+              rules={currentValidator.getAntdRules('image')}
+              extra="请输入有效的图片URL（可选）"
             >
-              <Input placeholder="请输入图片URL（可选）" />
+              <Input placeholder="https://example.com/image.jpg" />
             </Form.Item>
             
             <Form.Item
               label="产品描述"
               name="description"
+              rules={currentValidator.getAntdRules('description')}
+              extra="描述不超过1000个字符（可选）"
             >
-              <Input.TextArea rows={4} placeholder="请输入产品描述" />
+              <Input.TextArea 
+                rows={4} 
+                placeholder="请输入产品描述" 
+                showCount
+                maxLength={1000}
+              />
             </Form.Item>
           </Form>
         </Modal>
@@ -317,4 +342,4 @@ const ProductManagement: React.FC = () => {
   );
 };
 
-export default ProductManagement; 
+export default ProductManagement;

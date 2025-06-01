@@ -5,11 +5,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/services';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-
-interface LoginForm {
-  username: string;
-  password: string;
-}
+import { LoginRequestSchema } from '@/schemas';
+import { createAntdFormValidator, validate } from '@/utils';
+import type { LoginRequest } from '@/types';
 
 const Login: React.FC = () => {
   useDocumentTitle('登录');
@@ -17,11 +15,18 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
   const [loading, setLoading] = useState(false);
+  const [form] = Form.useForm<LoginRequest>();
 
-  const onFinish = async (values: LoginForm) => {
+  // 创建表单验证器
+  const formValidator = createAntdFormValidator(LoginRequestSchema);
+
+  const onFinish = async (values: LoginRequest) => {
     setLoading(true);
     try {
-      const response = await authService.login(values);
+      // 使用 zod 进行表单数据验证
+      const validatedData = await formValidator.validateBeforeSubmit(values);
+      
+      const response = await authService.login(validatedData);
       if (response.success && response.data) {
         login(response.data.user, response.data.token);
         message.success('登录成功！');
@@ -35,6 +40,26 @@ const Login: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // 实时验证字段
+  const handleFieldChange = (changedFields: any[]) => {
+    changedFields.forEach(({ name, value }) => {
+      if (value) {
+        const fieldName = Array.isArray(name) ? name[0] : name;
+        const validationResult = validate(LoginRequestSchema.partial(), { [fieldName]: value });
+        
+        if (!validationResult.success) {
+          const fieldError = validationResult.errors?.find(err => err.includes(fieldName));
+          if (fieldError) {
+            form.setFields([{
+              name: fieldName,
+              errors: [fieldError],
+            }]);
+          }
+        }
+      }
+    });
   };
 
   return (
@@ -55,14 +80,16 @@ const Login: React.FC = () => {
         }}
       >
         <Form
+          form={form}
           name="login"
           onFinish={onFinish}
+          onFieldsChange={handleFieldChange}
           autoComplete="off"
           size="large"
         >
           <Form.Item
             name="username"
-            rules={[{ required: true, message: '请输入用户名!' }]}
+            rules={formValidator.getAntdRules('username')}
           >
             <Input
               prefix={<UserOutlined />}
@@ -72,7 +99,7 @@ const Login: React.FC = () => {
 
           <Form.Item
             name="password"
-            rules={[{ required: true, message: '请输入密码!' }]}
+            rules={formValidator.getAntdRules('password')}
           >
             <Input.Password
               prefix={<LockOutlined />}
@@ -94,6 +121,10 @@ const Login: React.FC = () => {
         
         <div style={{ textAlign: 'center', marginTop: 16, color: '#666' }}>
           <p>测试账号：admin / admin123</p>
+          <div style={{ fontSize: '12px', color: '#999' }}>
+            <p>• 用户名不能为空</p>
+            <p>• 密码至少6个字符</p>
+          </div>
         </div>
       </Card>
     </div>

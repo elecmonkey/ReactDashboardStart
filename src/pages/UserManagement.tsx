@@ -16,6 +16,9 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import type { User } from '@/types';
 import { userService } from '@/services';
+import { CreateUserRequestSchema, UpdateUserRequestSchema } from '@/schemas';
+import { createAntdFormValidator } from '@/utils';
+import type { CreateUserRequest, UpdateUserRequest } from '@/schemas';
 
 const UserManagement: React.FC = () => {
   useDocumentTitle('用户管理');
@@ -25,6 +28,10 @@ const UserManagement: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [form] = Form.useForm();
+
+  // 创建表单验证器
+  const createValidator = createAntdFormValidator(CreateUserRequestSchema);
+  const updateValidator = createAntdFormValidator(UpdateUserRequestSchema);
 
   // 获取用户列表
   const fetchUsers = async () => {
@@ -77,16 +84,25 @@ const UserManagement: React.FC = () => {
       const values = await form.validateFields();
       
       if (editingUser) {
-        // 编辑用户
-        const response = await userService.updateUser(editingUser.id, values);
+        // 编辑用户 - 使用 zod 验证
+        const validator = updateValidator;
+        const validatedData = await validator.validateBeforeSubmit({
+          ...values,
+          id: editingUser.id
+        } as UpdateUserRequest);
+        
+        const response = await userService.updateUser(editingUser.id, validatedData);
         if (response.success) {
           message.success('用户更新成功');
         } else {
           message.error(response.message || '更新失败');
         }
       } else {
-        // 添加用户
-        const response = await userService.createUser(values);
+        // 添加用户 - 使用 zod 验证
+        const validator = createValidator;
+        const validatedData = await validator.validateBeforeSubmit(values as CreateUserRequest);
+        
+        const response = await userService.createUser(validatedData);
         if (response.success) {
           message.success('用户添加成功');
         } else {
@@ -126,8 +142,8 @@ const UserManagement: React.FC = () => {
       dataIndex: 'role',
       key: 'role',
       render: (role: string) => (
-        <Tag color={role === 'admin' ? 'red' : 'blue'}>
-          {role === 'admin' ? '管理员' : '普通用户'}
+        <Tag color={role === 'admin' ? 'red' : role === 'manager' ? 'orange' : 'blue'}>
+          {role === 'admin' ? '管理员' : role === 'manager' ? '管理者' : role === 'user' ? '普通用户' : '访客'}
         </Tag>
       ),
     },
@@ -177,6 +193,9 @@ const UserManagement: React.FC = () => {
     },
   ];
 
+  // 根据编辑状态选择验证器
+  const currentValidator = editingUser ? updateValidator : createValidator;
+
   return (
     <Spin spinning={loading}>
       <div>
@@ -218,7 +237,8 @@ const UserManagement: React.FC = () => {
             <Form.Item
               label="用户名"
               name="username"
-              rules={[{ required: true, message: '请输入用户名!' }]}
+              rules={currentValidator.getAntdRules('username')}
+              extra="3-20个字符，只能包含字母、数字和下划线"
             >
               <Input />
             </Form.Item>
@@ -226,21 +246,31 @@ const UserManagement: React.FC = () => {
             <Form.Item
               label="邮箱"
               name="email"
-              rules={[
-                { required: true, message: '请输入邮箱!' },
-                { type: 'email', message: '请输入有效的邮箱地址!' }
-              ]}
+              rules={currentValidator.getAntdRules('email')}
             >
               <Input />
             </Form.Item>
+
+            {!editingUser && (
+              <Form.Item
+                label="密码"
+                name="password"
+                rules={createValidator.getAntdRules('password')}
+                extra="至少8个字符，包含大小写字母、数字和特殊字符"
+              >
+                <Input.Password />
+              </Form.Item>
+            )}
             
             <Form.Item
               label="角色"
               name="role"
-              rules={[{ required: true, message: '请选择角色!' }]}
+              rules={currentValidator.getAntdRules('role')}
             >
               <Select>
+                <Select.Option value="guest">访客</Select.Option>
                 <Select.Option value="user">普通用户</Select.Option>
+                <Select.Option value="manager">管理者</Select.Option>
                 <Select.Option value="admin">管理员</Select.Option>
               </Select>
             </Form.Item>
@@ -248,12 +278,44 @@ const UserManagement: React.FC = () => {
             <Form.Item
               label="状态"
               name="status"
-              rules={[{ required: true, message: '请选择状态!' }]}
+              rules={currentValidator.getAntdRules('status')}
             >
               <Select>
                 <Select.Option value="active">激活</Select.Option>
                 <Select.Option value="inactive">禁用</Select.Option>
               </Select>
+            </Form.Item>
+
+            <Form.Item
+              label="手机号"
+              name="phone"
+              rules={currentValidator.getAntdRules('phone')}
+            >
+              <Input placeholder="可选" />
+            </Form.Item>
+
+            <Form.Item
+              label="真实姓名"
+              name="realName"
+              rules={currentValidator.getAntdRules('realName')}
+            >
+              <Input placeholder="可选" />
+            </Form.Item>
+
+            <Form.Item
+              label="部门"
+              name="department"
+              rules={currentValidator.getAntdRules('department')}
+            >
+              <Input placeholder="可选" />
+            </Form.Item>
+
+            <Form.Item
+              label="职位"
+              name="position"
+              rules={currentValidator.getAntdRules('position')}
+            >
+              <Input placeholder="可选" />
             </Form.Item>
           </Form>
         </Modal>
@@ -262,4 +324,4 @@ const UserManagement: React.FC = () => {
   );
 };
 
-export default UserManagement; 
+export default UserManagement;
