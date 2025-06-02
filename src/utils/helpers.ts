@@ -84,6 +84,6 @@ export const throttle = <T extends (...args: any[]) => any>(
  */
 export const generateId = (prefix: string = ''): string => {
   const timestamp = Date.now().toString();
-  const random = Math.random().toString(36).substr(2, 9);
+  const random = Math.random().toString(36).slice(2, 11);
   return prefix ? `${prefix}-${timestamp}-${random}` : `${timestamp}-${random}`;
 }; 
